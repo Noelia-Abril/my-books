@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { View } from 'react-native';
 import { Icon } from '@rneui/themed';
+import { View } from 'react-native';
 
 export default function StarRating({ rating, setRating }) {
   return (

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Text, Input, Button } from '@rneui/themed';
-import StarRating from '../components/StarRating';
-import { collection, addDoc, query, where, onSnapshot } from 'firebase/firestore';
-import { db, auth } from '../config/firebase';
+import { Button, Input, Text } from '@rneui/themed';
+import { addDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import StarRating from '../../components/StartRating';
+import { auth, db } from '../../config/firebase';
 
 export default function BookDetailScreen({ route }) {
   const { book } = route.params;

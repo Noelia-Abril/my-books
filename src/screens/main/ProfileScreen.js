@@ -1,44 +1,24 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { Text, Button, Avatar } from '@rneui/themed';
-import { auth, db, storage } from '../../config/firebase';
-import { signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Avatar } from '@rneui/themed';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
-import { useAuth } from '../../context/AuthContext';
+import { doc, updateDoc } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { auth, db, storage } from '../../config/firebase';
 
 export default function ProfileScreen() {
-  const { user } = useAuth();
-  const [userData, setUserData] = useState(null);
   const [image, setImage] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (user?.uid) {
-        const docRef = doc(db, 'users', user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserData(docSnap.data());
-          setImage(docSnap.data().photoURL);
-        }
-      }
-    };
-    fetchUserData();
-  }, [user]);
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      Alert.alert('Error', error.message);
-    }
-  };
-
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (!permissionResult.granted) {
+      Alert.alert('Permiso requerido', 'Necesitamos acceso a tus fotos para cambiar la imagen de perfil');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
@@ -53,55 +33,39 @@ export default function ProfileScreen() {
   const uploadImage = async (uri) => {
     setUploading(true);
     try {
-
-      const blob = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.onload = function() {
-          resolve(xhr.response);
-        };
-        xhr.onerror = function() {
-          reject(new TypeError('Network request failed'));
-        };
-        xhr.responseType = 'blob';
-        xhr.open('GET', uri, true);
-        xhr.send(null);
-      });
-
-      const storageRef = ref(storage, `profile_pictures/${user.uid}`);
-      await uploadBytes(storageRef, blob);
-
-      const downloadURL = await getDownloadURL(storageRef);
-
-      const userRef = doc(db, 'users', user.uid);
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const storageRef = ref(storage, `profile_pictures/${auth.currentUser.uid}`);
+      const snapshot = await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      const userRef = doc(db, 'users', auth.currentUser.uid);
       await updateDoc(userRef, {
         photoURL: downloadURL
       });
 
-      // Actualizar estado local
       setImage(downloadURL);
-      Alert.alert('Éxito', 'Foto de perfil actualizada correctamente');
     } catch (error) {
       console.error('Error uploading image:', error);
-      Alert.alert('Error', 'No se pudo actualizar la foto de perfil');
+      let errorMessage = 'Error al subir la imagen';
+      
+      if (error.code === 'storage/unauthorized') {
+        errorMessage = 'No tienes permiso para subir archivos';
+      } else if (error.code === 'storage/canceled') {
+        errorMessage = 'Subida cancelada';
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setUploading(false);
     }
   };
-
-  if (!userData) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
       <Avatar
         size="xlarge"
         rounded
-        source={{ uri: image }}
+        source={{ uri: image || auth.currentUser?.photoURL }}
         containerStyle={styles.avatar}
       >
         <Avatar.Accessory 
@@ -115,28 +79,6 @@ export default function ProfileScreen() {
           </View>
         )}
       </Avatar>
-
-      <Text h4 style={styles.userName}>
-        {user?.email}
-      </Text>
-
-      <View style={styles.statsContainer}>
-        <View style={styles.stat}>
-          <Text h4>{userData?.booksRead || 0}</Text>
-          <Text>Libros leídos</Text>
-        </View>
-        <View style={styles.stat}>
-          <Text h4>{userData?.reviewsCount || 0}</Text>
-          <Text>Reseñas</Text>
-        </View>
-      </View>
-
-      <Button 
-        title="Cerrar Sesión" 
-        type="outline"
-        containerStyle={styles.button}
-        onPress={handleLogout}
-      />
     </View>
   );
 }
@@ -144,41 +86,17 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     alignItems: 'center',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingTop: 20,
   },
   avatar: {
-    marginBottom: 20,
-    position: 'relative',
+    marginTop: 20,
   },
   uploadOverlay: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 100,
-  },
-  userName: {
-    marginBottom: 30,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginBottom: 30,
-  },
-  stat: {
-    alignItems: 'center',
-  },
-  button: {
-    marginTop: 20,
-    width: '80%',
   },
 });

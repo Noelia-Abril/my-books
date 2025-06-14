@@ -25,6 +25,7 @@
         }
       ]
     ],
+    "main": "./App.js",
     "ios": {
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Permite acceder a tus fotos para seleccionar una imagen de perfil"

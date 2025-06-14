@@ -1,15 +1,18 @@
-import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import LoginScreen from '../screens/auth/LoginScreen';
-import RegisterScreen from '../screens/auth/RegisterScreen';
+import BookDetailScreen from '../screens/main/BookDetailScreen';
+import LibraryScreen from '../screens/main/LibraryScreen';
 
 const Stack = createNativeStackNavigator();
 
-export default function AuthNavigator() {
+export default function MainNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
+    <Stack.Navigator>
+      <Stack.Screen name="Library" component={LibraryScreen} />
+      <Stack.Screen 
+        name="BookDetail" 
+        component={BookDetailScreen} 
+        options={({ route }) => ({ title: route.params.book.title })}
+      />
     </Stack.Navigator>
   );
 }
